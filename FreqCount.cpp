@@ -24,7 +24,7 @@
  */
 
 #include "FreqCount.h"
-#include "util/timers.h"
+#include "util/FreqCountTimers.h"
 
 static uint16_t count_msw;
 static uint32_t count_prev;
