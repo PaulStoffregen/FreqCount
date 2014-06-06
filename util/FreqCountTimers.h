@@ -1,9 +1,6 @@
 #ifndef FreqCount_timers_h_
 #define FreqCount_timers_h_
 
-#include <avr/io.h>
-#include <avr/interrupt.h>
-
 // Arduino Mega
 #if defined(__AVR_ATmega1280__) || defined(__AVR_ATmega2560__)
   // #define COUNTER_USE_TIMER1 // T1 is not connected
@@ -11,6 +8,11 @@
   // #define COUNTER_USE_TIMER4 // T4 is not connected
   #define COUNTER_USE_TIMER5    // T5 is pin 47
   #define TIMER_USE_TIMER2
+
+// Teensy 3.0 & 3.1
+#elif defined(__MK20DX128__) || defined(__MK20DX256__)
+  #define COUNTER_USE_LPTMR     // LPTMR is pin 13  (has LED connected)
+  #define TIMER_USE_INTERVALTIMER
 
 // Teensy 2.0
 #elif defined(__AVR_ATmega32U4__)
@@ -43,7 +45,48 @@
 /*   Counter Hardware Abstraction             */
 /**********************************************/
 
-#if defined(COUNTER_USE_TIMER1) // 16 bit Timer 1
+#if defined(COUNTER_USE_LPTMR) // 16 bit LPTMR on Freescale Kinetis
+
+static inline void counter_init(void)
+{
+	SIM_SCGC5 |= SIM_SCGC5_LPTIMER;
+	LPTMR0_CSR = 0;
+	LPTMR0_PSR = 0b00000100; // bypass prescaler/filter
+	LPTMR0_CMR = 0xFFFF;
+	LPTMR0_CSR = 0b00100110; // counter, input=alt2, free running mode
+	CORE_PIN13_CONFIG = PORT_PCR_MUX(3);
+}
+
+static inline void counter_start(void)
+{
+	LPTMR0_CSR = 0b00100111; // enable 
+}
+
+static inline void counter_shutdown(void)
+{
+	LPTMR0_CSR = 0;
+}
+
+static inline uint16_t counter_read(void)
+{
+	LPTMR0_CNR = 0; // writing cause sync with hardware
+	return LPTMR0_CNR;
+}
+
+static inline uint8_t counter_overflow(void)
+{
+	return (LPTMR0_CSR & 0x80) ? 1 : 0;
+}
+
+static inline void counter_overflow_reset(void)
+{
+	LPTMR0_CSR = 0b10100111;
+}
+
+
+
+
+#elif defined(COUNTER_USE_TIMER1) // 16 bit Timer 1 on Atmel AVR
 
 static uint8_t saveTCCR1A, saveTCCR1B;
 
@@ -80,14 +123,14 @@ static inline uint8_t counter_overflow(void)
 	return TIFR1 & (1<<TOV1);
 }
 
-static inline uint8_t counter_overflow_reset(void)
+static inline void counter_overflow_reset(void)
 {
-	return TIFR1 = (1<<TOV1);
+	TIFR1 = (1<<TOV1);
 }
 
 
 
-#elif defined(COUNTER_USE_TIMER3) // 16 bit Timer 3
+#elif defined(COUNTER_USE_TIMER3) // 16 bit Timer 3 on Atmel AVR
 
 static uint8_t saveTCCR3A, saveTCCR3B;
 
@@ -124,13 +167,13 @@ static inline uint8_t counter_overflow(void)
 	return TIFR3 & (1<<TOV3);
 }
 
-static inline uint8_t counter_overflow_reset(void)
+static inline void counter_overflow_reset(void)
 {
-	return TIFR3 = (1<<TOV3);
+	TIFR3 = (1<<TOV3);
 }
 
 
-#elif defined(COUNTER_USE_TIMER4) // 16 bit Timer 4
+#elif defined(COUNTER_USE_TIMER4) // 16 bit Timer 4 on Atmel AVR
 
 static uint8_t saveTCCR4A, saveTCCR4B;
 
@@ -167,13 +210,13 @@ static inline uint8_t counter_overflow(void)
 	return TIFR4 & (1<<TOV4);
 }
 
-static inline uint8_t counter_overflow_reset(void)
+static inline void counter_overflow_reset(void)
 {
-	return TIFR4 = (1<<TOV4);
+	TIFR4 = (1<<TOV4);
 }
 
 
-#elif defined(COUNTER_USE_TIMER5) // 16 bit Timer 5
+#elif defined(COUNTER_USE_TIMER5) // 16 bit Timer 5 on Atmel AVR
 
 static uint8_t saveTCCR5A, saveTCCR5B;
 
@@ -210,9 +253,9 @@ static inline uint8_t counter_overflow(void)
 	return TIFR5 & (1<<TOV5);
 }
 
-static inline uint8_t counter_overflow_reset(void)
+static inline void counter_overflow_reset(void)
 {
-	return TIFR5 = (1<<TOV5);
+	TIFR5 = (1<<TOV5);
 }
 
 
@@ -220,11 +263,44 @@ static inline uint8_t counter_overflow_reset(void)
 
 
 
+
 /**********************************************/
 /*   Timer Hardware Abstraction               */
 /**********************************************/
 
-#if defined(TIMER_USE_TIMER2) // 8 bit Timer 2
+#if defined(TIMER_USE_INTERVALTIMER) // Teensyduino IntervalTimer
+
+static IntervalTimer itimer;
+static void timer_interrupt(void);
+
+static inline uint16_t timer_init(uint16_t msec)
+{
+	return msec;
+}
+
+static inline void timer_start(void)
+{
+	// IntervalTimer is capable of longer intervals, but
+	// LPTMR can overflow.  Limiting to 1 ms allows counting
+	// up to 65.535 MHz... LPTMR on Teensy 3.1 can do 65 MHz!
+	itimer.begin(timer_interrupt, 1000);
+}
+
+static inline void timer_shutdown(void)
+{
+	itimer.end();
+}
+
+#define TIMER_ISR_VECTOR timer_interrupt
+#ifdef ISR
+#undef ISR
+#endif
+#define ISR(name) void name (void)
+
+
+
+
+#elif defined(TIMER_USE_TIMER2) // 8 bit Timer 2 on Atmel AVR
 
 /*        1ms       2ms       4ms       8ms
 16 MHz    128x125   256x125   256x250   1024x125
@@ -373,7 +449,7 @@ only downside is a slight inaccuracy in the first measurement.
 
 
 
-#elif defined(TIMER_USE_TIMER4H)  // 10 bit "high speed" Timer 4
+#elif defined(TIMER_USE_TIMER4H)  // 10 bit "high speed" Timer 4 on Atmel AVR
 
 #define TIMER4H_OCR4C_VAL   124		// always div 125
 #if F_CPU == 16000000L
@@ -408,6 +484,8 @@ only downside is a slight inaccuracy in the first measurement.
 static uint8_t saveTCCR4A, saveTCCR4B, saveTCCR4C, saveTCCR4D, saveTCCR4E, saveOCR4C;
 static uint8_t startTCCR4B;
 
+// input is the number of milliseconds required
+// output is the number of interrupts needed for that number of milliseconds
 static inline uint16_t timer_init(uint16_t msec)
 {
 	uint16_t gate_len;
@@ -472,6 +550,7 @@ static inline void timer_shutdown(void)
 static inline void timer_isr_latency_delay(void)
 {
 #ifdef TIMER_LATENCY_CYCLES
+#ifdef __AVR__
 	uint8_t cycles_times_3 = TIMER_LATENCY_CYCLES / 3;
 	asm volatile(
 		"L_%=_loop:"
@@ -480,6 +559,7 @@ static inline void timer_isr_latency_delay(void)
 		: "+d" (cycles_times_3)
 		: "0" (cycles_times_3)
 	);
+#endif
 #endif
 }
 

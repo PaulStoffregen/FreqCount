@@ -1,7 +1,7 @@
 #ifndef FreqCount_h
 #define FreqCount_h
 
-#include <inttypes.h>
+#include <Arduino.h>
 
 class FreqCountClass {
 public:
