@@ -1,8 +1,8 @@
 /* FreqCount Library, for measuring frequencies
  * http://www.pjrc.com/teensy/td_libs_FreqCount.html
- * Copyright (c) 2011 PJRC.COM, LLC - Paul Stoffregen <paul@pjrc.com>
+ * Copyright (c) 2014 PJRC.COM, LLC - Paul Stoffregen <paul@pjrc.com>
  *
- * Version 1.0
+ * Version 1.1
  * 
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
