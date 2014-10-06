@@ -553,7 +553,7 @@ static inline void timer_start(void)
 
 static inline void timer_shutdown(void)
 {
-	TCCR2B = 0;
+	TCCR4B = 0;
 	TIMSK4 = 0;
 	OCR4C = saveOCR4C;
 	TCCR4A = saveTCCR4A;
