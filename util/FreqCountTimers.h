@@ -35,7 +35,7 @@
   #define TIMER_USE_TIMER2
 
 // Teensy 3.0 & 3.1 & LC
-#elif defined(__MK20DX128__) || defined(__MK20DX256__) || defined(__MKL26Z64__)
+#elif defined(__MK20DX128__) || defined(__MK20DX256__) || defined(__MKL26Z64__) || defined(__MK64FX512__) || defined(__MK66FX1M0__)
   #define COUNTER_USE_LPTMR     // LPTMR is pin 13  (has LED connected)
   #define TIMER_USE_INTERVALTIMER
 
