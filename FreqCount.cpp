@@ -36,7 +36,7 @@ static uint16_t gate_index;
 
 void FreqCountClass::begin(uint16_t msec)
 {
-	if (msec < 10) return;
+	if (msec < 1) return;
 	gate_index = 0;
 	count_msw = 0;
 	count_prev = 0;
