@@ -63,7 +63,12 @@ uint32_t FreqCountClass::read(void)
 
 	status = SREG;
 	cli();
+#if F_CPU == 12000000L
+	float correct = count_output * 0.996155;
+	count = (uint32_t) (correct+0.5);
+#else
 	count = count_output;
+#endif
 	count_ready = 0;
 	SREG = status;
 	return count;
