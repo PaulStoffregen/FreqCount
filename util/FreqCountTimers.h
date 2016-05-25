@@ -329,6 +329,7 @@ static inline void timer_shutdown(void)
 
 /*        1ms       2ms       4ms       8ms
 16 MHz    128x125   256x125   256x250   1024x125
+12 MHz    64x188    128x188   256x188	1024x94	    //Not exact ms values: 2% error
 8 MHz     64x125    128x125   256x125   256x250
 4 MHz     32x125    64x125    128x125   256x125
 2 MHz     8x250     32x125    64x125    128x125
@@ -342,6 +343,15 @@ static inline void timer_shutdown(void)
   #define TIMER2_OCR2A_4MS_VAL	249					// div 250
   #define TIMER2_TCCR2B_4MS_VAL	(1<<CS22) | (1<<CS21)			// div 256
   #define TIMER2_OCR2A_8MS_VAL	124					// div 125
+  #define TIMER2_TCCR2B_8MS_VAL	(1<<CS22) | (1<<CS21) | (1<<CS20)	// div 1024
+#elif F_CPU == 12000000L
+  #define TIMER2_OCR2A_1MS_VAL	187					// div 188
+  #define TIMER2_TCCR2B_1MS_VAL (1<<CS22)				// div 64
+  #define TIMER2_OCR2A_2MS_VAL	187					// div 125
+  #define TIMER2_TCCR2B_2MS_VAL (1<<CS22) |             (1<<CS20)	// div 128
+  #define TIMER2_OCR2A_4MS_VAL	187					// div 250
+  #define TIMER2_TCCR2B_4MS_VAL	(1<<CS22) | (1<<CS21)			// div 256
+  #define TIMER2_OCR2A_8MS_VAL	93					// div 125
   #define TIMER2_TCCR2B_8MS_VAL	(1<<CS22) | (1<<CS21) | (1<<CS20)	// div 1024
 #elif F_CPU == 8000000L
   #define TIMER2_OCR2A_1MS_VAL  124					// div 125
@@ -380,16 +390,8 @@ static inline void timer_shutdown(void)
   #define TIMER2_OCR2A_8MS_VAL	124					// div 125
   #define TIMER2_TCCR2B_8MS_VAL	(1<<CS22)				// div 64
 #else
-#error "Clock must be 16, 8, 4, 2 or 1 MHz"
+#error "Clock must be 16, 12, 8, 4, 2 or 1 MHz"
 #endif
-
-/*	1ms	2ms	4ms	8ms
-16 MHz	128x125	256x125	256x250	1024x125
-8 MHz	64x125	128x125	256x125	256x250
-4 MHz	32x125	64x125	128x125	256x125
-2 MHz	8x250	32x125	64x125	128x125
-1 MHz	8x125	8x250	32x125	64x125
-*/
 
 static uint8_t saveTCCR2A, saveTCCR2B;
 static uint8_t startTCCR2B;
