@@ -83,20 +83,26 @@ void FreqCountClass::end(void)
 
 ISR(TIMER_ISR_VECTOR)
 {
-	uint16_t count_lsw;
+	uint16_t lsw, msw;
 	uint32_t count;
 	uint16_t index, length;
 
-	count_lsw = counter_read();
+	lsw = counter_read();
+	msw = count_msw;
 	if (counter_overflow()) {
 		counter_overflow_reset();
-		count_msw++;
+		if (lsw < 0x8000) {
+			msw = msw + 1;
+			count_msw = msw;
+		} else {
+			count_msw = msw + 1;
+		}
 	}
 	index = gate_index + 1;
 	length = gate_length;
 	if (index >= length) {
 		gate_index = 0;
-		count = ((uint32_t)count_msw << 16) + count_lsw;
+		count = ((uint32_t)msw << 16) + lsw;
 		count_output = count - count_prev;
 		count_prev = count;
 		count_ready = 1;
