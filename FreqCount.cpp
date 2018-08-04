@@ -91,7 +91,7 @@ ISR(TIMER_ISR_VECTOR)
 	msw = count_msw;
 	if (counter_overflow()) {
 		counter_overflow_reset();
-		if (lsw < 0x8000) {
+		if (lsw < 0xFA00) {
 			msw = msw + 1;
 			count_msw = msw;
 		} else {
