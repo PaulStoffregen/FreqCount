@@ -26,6 +26,10 @@
 #ifndef FreqCount_timers_h_
 #define FreqCount_timers_h_
 
+static uint32_t count_prev;
+static volatile uint32_t count_output;
+static volatile uint8_t count_ready;
+
 // Arduino Mega
 #if defined(__AVR_ATmega1280__) || defined(__AVR_ATmega2560__)
   // #define COUNTER_USE_TIMER1 // T1 is not connected
@@ -33,6 +37,11 @@
   // #define COUNTER_USE_TIMER4 // T4 is not connected
   #define COUNTER_USE_TIMER5    // T5 is pin 47
   #define TIMER_USE_TIMER2
+
+//Teensy 4.0
+#elif defined(__IMXRT1062__)
+	#define COUNTER_USE_GPT
+    #define TIMER_USE_INTERVALTIMER_T4
 
 // Teensy 3.0 & 3.1 & LC
 #elif defined(__MK20DX128__) || defined(__MK20DX256__) || defined(__MKL26Z64__) || defined(__MK64FX512__) || defined(__MK66FX1M0__)
@@ -108,6 +117,42 @@ static inline void counter_overflow_reset(void)
 	LPTMR0_CSR = 0b10100111;
 }
 
+
+#elif defined(COUNTER_USE_GPT)
+static inline void counter_init(void)
+{
+  CCM_CCGR0 |= CCM_CCGR0_GPT2_BUS(CCM_CCGR_ON) ;  // enable GPT2 module
+  GPT2_CR = 0;
+  GPT2_SR = 0x3F; // clear all prior status
+  GPT2_CR =  GPT_CR_CLKSRC(3);// | GPT_CR_FRR ;// 3 external clock
+  IOMUXC_SW_MUX_CTL_PAD_GPIO_AD_B1_02 = 0x08;  //uses pin 14
+  IOMUXC_GPT2_IPP_IND_CLKIN_SELECT_INPUT = 0x01;
+}
+
+static inline void counter_start(void)
+{
+  GPT2_CR |= GPT_CR_EN; // enable
+}
+
+static inline void counter_shutdown(void)
+{
+  GPT2_CR = 0;
+}
+
+static inline uint32_t counter_read(void)  // was uint16_t in FreqCount?
+{
+  return GPT2_CNT;
+}
+
+static inline uint8_t counter_overflow(void)
+{
+  return GPT2_SR & GPT_SR_ROV;
+}
+
+static inline void counter_overflow_reset(void)
+{
+  GPT2_SR |= GPT_SR_ROV;
+}
 
 
 
@@ -296,7 +341,7 @@ static inline void counter_overflow_reset(void)
 #if defined(TIMER_USE_INTERVALTIMER) // Teensyduino IntervalTimer
 
 static IntervalTimer itimer;
-static void timer_interrupt(void);
+static void timer_callback(void);
 
 static inline uint16_t timer_init(uint16_t msec)
 {
@@ -308,7 +353,7 @@ static inline void timer_start(void)
 	// IntervalTimer is capable of longer intervals, but
 	// LPTMR can overflow.  Limiting to 1 ms allows counting
 	// up to 65.535 MHz... LPTMR on Teensy 3.1 can do 65 MHz!
-	itimer.begin(timer_interrupt, 1000);
+	itimer.begin(timer_callback, 1000000);
 }
 
 static inline void timer_shutdown(void)
@@ -322,7 +367,21 @@ static inline void timer_shutdown(void)
 #endif
 #define ISR(name) void name (void)
 
+#elif defined(TIMER_USE_INTERVALTIMER_T4)
+static IntervalTimer itimer;
 
+void timer_callback() {
+  uint32_t count = counter_read();
+
+  //track rollover ?
+  count_output = count - count_prev;
+  count_prev = count;
+  count_ready = 1;
+}
+
+void timer_init(uint32_t msec){
+	itimer.begin(timer_callback, msec);
+}
 
 
 #elif defined(TIMER_USE_TIMER2) // 8 bit Timer 2 on Atmel AVR
