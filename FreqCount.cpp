@@ -111,33 +111,24 @@ ISR(TIMER_ISR_VECTOR)
 }
 
 #else
-uint32_t us;
-
 void FreqCountClass::begin(uint32_t msec)
 {
   counter_init();
+  timer_init(msec);  // us
   counter_start();
-  us = micros();
 }
 
 uint8_t FreqCountClass::available(void)
-{ 
-	if (micros() - us < 1000000) {
-		count_ready = 0;
-	} else {
-		us = micros();
-		count_ready = 1;
-	}
+{
 	return count_ready;
 }
 
 uint32_t FreqCountClass::read(void)
 {
- 
-    uint32_t count = counter_read();
-    count_output = count - count_prev;
-    count_prev = count;
-     return count_output;
+  if (count_ready) {
+    count_ready = 0;
+  }
+    return count_output;
 }
 
 #endif
