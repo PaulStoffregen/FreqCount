@@ -29,8 +29,7 @@
 static uint32_t count_prev;
 static volatile uint32_t count_output;
 static volatile uint8_t count_ready;
-static volatile uint32_t us;
-uint32_t us_limit;  //microseconds for use with T4
+static volatile uint32_t usec;
 
 // Arduino Mega
 #if defined(__AVR_ATmega1280__) || defined(__AVR_ATmega2560__)
@@ -42,7 +41,9 @@ uint32_t us_limit;  //microseconds for use with T4
 
 //Teensy 4.0
 #elif defined(__IMXRT1062__)
-	#define COUNTER_USE_QT
+	IMXRT_TMR_t * TMRx = (IMXRT_TMR_t *)&IMXRT_TMR4;
+	#define COUNTER_USE_QT4
+    #define TIMER_USE_INTERVALTIMER_T4
 
 // Teensy 3.0 & 3.1 & LC
 #elif defined(__MK20DX128__) || defined(__MK20DX256__) || defined(__MKL26Z64__) || defined(__MK64FX512__) || defined(__MK66FX1M0__)
@@ -119,63 +120,30 @@ static inline void counter_overflow_reset(void)
 }
 
 
-#elif defined(COUNTER_USE_QT)   //Using T4 Quad Timer
-IMXRT_TMR_t * TMRx = (IMXRT_TMR_t *)&IMXRT_TMR3;
-
+#elif defined(COUNTER_USE_QT4)
 static inline void counter_init(void)
 {
+  CCM_CCGR6 |= CCM_CCGR6_QTIMER4(CCM_CCGR_ON); //enable QTMR4
 
-  CCM_CCGR6 |= CCM_CCGR6_QTIMER3(CCM_CCGR_ON); //enable QTMR3
-
-  IOMUXC_SW_MUX_CTL_PAD_GPIO_AD_B1_00 = 1;    // QT3 Timer0 on pin 19
-  IOMUXC_QTIMER3_TIMER0_SELECT_INPUT = 1;  // select which input pin map
+  IOMUXC_SW_MUX_CTL_PAD_GPIO_B0_11 = 1;    // QT4 Timer2 on pin 9
 
   int cnt = 65536 ; // full cycle
-  TMRx->CH[0].CTRL = 0; // stop
-  TMRx->CH[0].CNTR = 0;
-  TMRx->CH[0].LOAD = 0;  // start val after compare
-  TMRx->CH[0].COMP1 = cnt - 1;  // count up to this val and start again
-  TMRx->CH[0].CMPLD1 = cnt - 1;
-  TMRx->CH[0].SCTRL = 0;
+  TMRx->CH[2].CTRL = 0; // stop
+  TMRx->CH[2].CNTR = 0;
+  TMRx->CH[2].LOAD = 0;  // start val after compare
+  TMRx->CH[2].COMP1 = cnt - 1;  // count up to this val and start again
+  TMRx->CH[2].CMPLD1 = cnt - 1;
+  TMRx->CH[2].SCTRL = 0;
 
-  TMRx->CH[1].CTRL = 0; // stop
-  TMRx->CH[1].CNTR = 0;
-  TMRx->CH[1].LOAD = 0;  // start val after compare
-  TMRx->CH[1].COMP1 = 0;
-  TMRx->CH[1].CMPLD1 = 0;
-  TMRx->CH[1].CTRL = TMR_CTRL_CM(7) | TMR_CTRL_PCS(4);  //clock from clock 0
+  TMRx->CH[3].CTRL = 0; // stop
+  TMRx->CH[3].CNTR = 0;
+  TMRx->CH[3].LOAD = 0;  // start val after compare
+  TMRx->CH[3].COMP1 = 0;
+  TMRx->CH[3].CMPLD1 = 0;
+  TMRx->CH[3].CTRL = TMR_CTRL_CM(7) | TMR_CTRL_PCS(6);  //clock from clock 2
 
-  TMRx->CH[0].CTRL = TMR_CTRL_CM(1) | TMR_CTRL_PCS(0) | TMR_CTRL_LENGTH ;
-
-  us = micros();
-
+  TMRx->CH[2].CTRL = TMR_CTRL_CM(1) | TMR_CTRL_PCS(2) | TMR_CTRL_LENGTH ;
 }
-
-static inline void counter_start(void)
-{
-  us = micros();
-}
-
-static inline void counter_shutdown(void)
-{
-  
-}
-
-static inline uint32_t counter_read(void)  // was uint16_t in FreqCount?
-{
-  return TMRx->CH[0].CNTR + 65536 * TMRx->CH[1].HOLD; // atomic;
-}
-
-static inline uint8_t counter_overflow(void)
-{
-  
-}
-
-static inline void counter_overflow_reset(void)
-{
-  
-}
-
 
 
 #elif defined(COUNTER_USE_TIMER1) // 16 bit Timer 1 on Atmel AVR
@@ -361,8 +329,9 @@ static inline void counter_overflow_reset(void)
 /**********************************************/
 
 #if defined(TIMER_USE_INTERVALTIMER) // Teensyduino IntervalTimer
+
 static IntervalTimer itimer;
-static void timer_interrupt(void);
+static void timer_callback(void);
 
 static inline uint16_t timer_init(uint16_t msec)
 {
@@ -374,7 +343,7 @@ static inline void timer_start(void)
 	// IntervalTimer is capable of longer intervals, but
 	// LPTMR can overflow.  Limiting to 1 ms allows counting
 	// up to 65.535 MHz... LPTMR on Teensy 3.1 can do 65 MHz!
-	itimer.begin(timer_interrupt, 1000);
+	itimer.begin(timer_callback, 1000000);
 }
 
 static inline void timer_shutdown(void)
@@ -387,6 +356,32 @@ static inline void timer_shutdown(void)
 #undef ISR
 #endif
 #define ISR(name) void name (void)
+
+#elif defined(TIMER_USE_INTERVALTIMER_T4)
+static IntervalTimer itimer;
+volatile uint32_t count;
+
+static void timer_callback()
+{
+  count = TMRx->CH[2].CNTR | TMRx->CH[3].HOLD << 16; // atomic
+  count_ready = 1;
+}
+
+static inline uint16_t timer_init(uint32_t usec)
+{
+	itimer.begin(timer_callback, usec);
+	return usec;
+}
+
+static inline void timer_start(void)
+{
+
+}
+
+static inline void timer_shutdown(void)
+{
+}
+
 
 
 #elif defined(TIMER_USE_TIMER2) // 8 bit Timer 2 on Atmel AVR

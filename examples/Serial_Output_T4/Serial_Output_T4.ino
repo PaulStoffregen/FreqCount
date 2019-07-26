@@ -3,11 +3,11 @@
  *
  * This example code is in the public domain.
  *
- * For the Teensy 4.0 pin 19 is used to measure the freq
+ * For the Teensy 4.0 pin 9 is used to measure the freq
  * FreqCount.begin time is in microseconds vs milliseconds
  * for other boards.
  * As a test the sketch is setup to output 50Mhz on pin 11 sopen
- * add a jumper from pin 11 to pin 19.
+ * add a jumper from pin 11 to pin 9.
  */
 #include <FreqCount.h>
 
