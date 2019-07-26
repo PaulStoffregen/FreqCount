@@ -29,6 +29,8 @@
 static uint32_t count_prev;
 static volatile uint32_t count_output;
 static volatile uint8_t count_ready;
+static volatile uint32_t us;
+uint32_t us_limit;  //microseconds for use with T4
 
 // Arduino Mega
 #if defined(__AVR_ATmega1280__) || defined(__AVR_ATmega2560__)
@@ -40,8 +42,7 @@ static volatile uint8_t count_ready;
 
 //Teensy 4.0
 #elif defined(__IMXRT1062__)
-	#define COUNTER_USE_GPT
-    #define TIMER_USE_INTERVALTIMER_T4
+	#define COUNTER_USE_QT
 
 // Teensy 3.0 & 3.1 & LC
 #elif defined(__MK20DX128__) || defined(__MK20DX256__) || defined(__MKL26Z64__) || defined(__MK64FX512__) || defined(__MK66FX1M0__)
@@ -118,40 +119,61 @@ static inline void counter_overflow_reset(void)
 }
 
 
-#elif defined(COUNTER_USE_GPT)
+#elif defined(COUNTER_USE_QT)   //Using T4 Quad Timer
+IMXRT_TMR_t * TMRx = (IMXRT_TMR_t *)&IMXRT_TMR3;
+
 static inline void counter_init(void)
 {
-  CCM_CCGR0 |= CCM_CCGR0_GPT2_BUS(CCM_CCGR_ON) ;  // enable GPT2 module
-  GPT2_CR = 0;
-  GPT2_SR = 0x3F; // clear all prior status
-  GPT2_CR =  GPT_CR_CLKSRC(3);// | GPT_CR_FRR ;// 3 external clock
-  IOMUXC_SW_MUX_CTL_PAD_GPIO_AD_B1_02 = 0x08;  //uses pin 14
-  IOMUXC_GPT2_IPP_IND_CLKIN_SELECT_INPUT = 0x01;
+
+  CCM_CCGR6 |= CCM_CCGR6_QTIMER3(CCM_CCGR_ON); //enable QTMR3
+
+  IOMUXC_SW_MUX_CTL_PAD_GPIO_AD_B1_00 = 1;    // QT3 Timer0 on pin 19
+  IOMUXC_QTIMER3_TIMER0_SELECT_INPUT = 1;  // select which input pin map
+
+  int cnt = 65536 ; // full cycle
+  TMRx->CH[0].CTRL = 0; // stop
+  TMRx->CH[0].CNTR = 0;
+  TMRx->CH[0].LOAD = 0;  // start val after compare
+  TMRx->CH[0].COMP1 = cnt - 1;  // count up to this val and start again
+  TMRx->CH[0].CMPLD1 = cnt - 1;
+  TMRx->CH[0].SCTRL = 0;
+
+  TMRx->CH[1].CTRL = 0; // stop
+  TMRx->CH[1].CNTR = 0;
+  TMRx->CH[1].LOAD = 0;  // start val after compare
+  TMRx->CH[1].COMP1 = 0;
+  TMRx->CH[1].CMPLD1 = 0;
+  TMRx->CH[1].CTRL = TMR_CTRL_CM(7) | TMR_CTRL_PCS(4);  //clock from clock 0
+
+  TMRx->CH[0].CTRL = TMR_CTRL_CM(1) | TMR_CTRL_PCS(0) | TMR_CTRL_LENGTH ;
+
+  us = micros();
+
 }
 
 static inline void counter_start(void)
 {
-  GPT2_CR |= GPT_CR_EN; // enable
+  us = micros();
 }
 
 static inline void counter_shutdown(void)
 {
-  GPT2_CR = 0;
+  
 }
 
 static inline uint32_t counter_read(void)  // was uint16_t in FreqCount?
 {
-  return GPT2_CNT;
+  return TMRx->CH[0].CNTR + 65536 * TMRx->CH[1].HOLD; // atomic;
 }
 
 static inline uint8_t counter_overflow(void)
 {
-  return GPT2_SR & GPT_SR_ROV;
+  
 }
 
 static inline void counter_overflow_reset(void)
 {
-  GPT2_SR |= GPT_SR_ROV;
+  
 }
 
 
@@ -339,9 +361,8 @@ static inline void counter_overflow_reset(void)
 /**********************************************/
 
 #if defined(TIMER_USE_INTERVALTIMER) // Teensyduino IntervalTimer
-
 static IntervalTimer itimer;
-static void timer_callback(void);
+static void timer_interrupt(void);
 
 static inline uint16_t timer_init(uint16_t msec)
 {
@@ -353,7 +374,7 @@ static inline void timer_start(void)
 	// IntervalTimer is capable of longer intervals, but
 	// LPTMR can overflow.  Limiting to 1 ms allows counting
 	// up to 65.535 MHz... LPTMR on Teensy 3.1 can do 65 MHz!
-	itimer.begin(timer_callback, 1000000);
+	itimer.begin(timer_interrupt, 1000);
 }
 
 static inline void timer_shutdown(void)
@@ -366,22 +387,6 @@ static inline void timer_shutdown(void)
 #undef ISR
 #endif
 #define ISR(name) void name (void)
-
-#elif defined(TIMER_USE_INTERVALTIMER_T4)
-static IntervalTimer itimer;
-
-void timer_callback() {
-  uint32_t count = counter_read();
-
-  //track rollover ?
-  count_output = count - count_prev;
-  count_prev = count;
-  count_ready = 1;
-}
-
-void timer_init(uint32_t msec){
-	itimer.begin(timer_callback, msec);
-}
 
 
 #elif defined(TIMER_USE_TIMER2) // 8 bit Timer 2 on Atmel AVR
