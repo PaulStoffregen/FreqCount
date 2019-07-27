@@ -7,7 +7,7 @@
  * FreqCount.begin time is in microseconds vs milliseconds
  * for other boards.
  * As a test the sketch is setup to output 50Mhz on pin 11 sopen
- * add a jumper from pin 11 to pin 9.
+ * add a jumper from pin 8 to pin 9.
  */
 #include <FreqCount.h>
 
@@ -15,8 +15,8 @@ void setup() {
   Serial.begin(57600);
   
   delay(2000);
-  analogWriteFrequency(11, 50000000);  // test jumper 11 to 25
-  analogWrite(11, 128);
+  analogWriteFrequency(8, 50000000);  // test jumper 11 to 25
+  analogWrite(8, 128);
   
   FreqCount.begin(1000000);  //Time in microseconds
 }
