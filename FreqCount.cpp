@@ -26,13 +26,10 @@
 #include "FreqCount.h"
 #include "util/FreqCountTimers.h"
 
+#if(!defined(__IMXRT1062__))
 static uint16_t count_msw;
-static uint32_t count_prev;
-static volatile uint32_t count_output;
-static volatile uint8_t count_ready;
 static uint16_t gate_length;
 static uint16_t gate_index;
-
 
 void FreqCountClass::begin(uint16_t msec)
 {
@@ -113,6 +110,32 @@ ISR(TIMER_ISR_VECTOR)
 	}
 }
 
+#else
+void FreqCountClass::begin(uint32_t usec)
+{
+  counter_init();
+  timer_init(usec);
+  //counter_start();
+
+}
+
+uint8_t FreqCountClass::available(void)
+{ 
+	return count_ready;
+}
+
+uint32_t FreqCountClass::read(void)
+{
+    count_output = count - count_prev;
+    count_prev = count;
+    //Serial.println(count - count_prev);
+    count_prev = count;
+    count_ready = 0;
+  
+  return count_output;
+}
+
+#endif
 
 FreqCountClass FreqCount;
 

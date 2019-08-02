@@ -26,6 +26,11 @@
 #ifndef FreqCount_timers_h_
 #define FreqCount_timers_h_
 
+static uint32_t count_prev;
+static volatile uint32_t count_output;
+static volatile uint8_t count_ready;
+static volatile uint32_t usec;
+
 // Arduino Mega
 #if defined(__AVR_ATmega1280__) || defined(__AVR_ATmega2560__)
   // #define COUNTER_USE_TIMER1 // T1 is not connected
@@ -33,6 +38,12 @@
   // #define COUNTER_USE_TIMER4 // T4 is not connected
   #define COUNTER_USE_TIMER5    // T5 is pin 47
   #define TIMER_USE_TIMER2
+
+//Teensy 4.0
+#elif defined(__IMXRT1062__)
+	IMXRT_TMR_t * TMRx = (IMXRT_TMR_t *)&IMXRT_TMR4;
+	#define COUNTER_USE_QT4
+    #define TIMER_USE_INTERVALTIMER_T4
 
 // Teensy 3.0 & 3.1 & LC
 #elif defined(__MK20DX128__) || defined(__MK20DX256__) || defined(__MKL26Z64__) || defined(__MK64FX512__) || defined(__MK66FX1M0__)
@@ -109,6 +120,30 @@ static inline void counter_overflow_reset(void)
 }
 
 
+#elif defined(COUNTER_USE_QT4)
+static inline void counter_init(void)
+{
+  CCM_CCGR6 |= CCM_CCGR6_QTIMER4(CCM_CCGR_ON); //enable QTMR4
+
+  IOMUXC_SW_MUX_CTL_PAD_GPIO_B0_11 = 1;    // QT4 Timer2 on pin 9
+
+  int cnt = 65536 ; // full cycle
+  TMRx->CH[2].CTRL = 0; // stop
+  TMRx->CH[2].CNTR = 0;
+  TMRx->CH[2].LOAD = 0;  // start val after compare
+  TMRx->CH[2].COMP1 = cnt - 1;  // count up to this val and start again
+  TMRx->CH[2].CMPLD1 = cnt - 1;
+  TMRx->CH[2].SCTRL = 0;
+
+  TMRx->CH[3].CTRL = 0; // stop
+  TMRx->CH[3].CNTR = 0;
+  TMRx->CH[3].LOAD = 0;  // start val after compare
+  TMRx->CH[3].COMP1 = 0;
+  TMRx->CH[3].CMPLD1 = 0;
+  TMRx->CH[3].CTRL = TMR_CTRL_CM(7) | TMR_CTRL_PCS(6);  //clock from clock 2
+
+  TMRx->CH[2].CTRL = TMR_CTRL_CM(1) | TMR_CTRL_PCS(2) | TMR_CTRL_LENGTH ;
+}
 
 
 #elif defined(COUNTER_USE_TIMER1) // 16 bit Timer 1 on Atmel AVR
@@ -322,6 +357,30 @@ static inline void timer_shutdown(void)
 #endif
 #define ISR(name) void name (void)
 
+#elif defined(TIMER_USE_INTERVALTIMER_T4)
+static IntervalTimer itimer;
+volatile uint32_t count;
+
+static void timer_callback()
+{
+  count = TMRx->CH[2].CNTR | TMRx->CH[3].HOLD << 16; // atomic
+  count_ready = 1;
+}
+
+static inline uint16_t timer_init(uint32_t usec)
+{
+	itimer.begin(timer_callback, usec);  //timer correction
+	return usec;
+}
+
+static inline void timer_start(void)
+{
+
+}
+
+static inline void timer_shutdown(void)
+{
+}
 
 
 
