@@ -331,7 +331,7 @@ static inline void counter_overflow_reset(void)
 #if defined(TIMER_USE_INTERVALTIMER) // Teensyduino IntervalTimer
 
 static IntervalTimer itimer;
-static void timer_callback(void);
+static void timer_interrupt(void);
 
 static inline uint16_t timer_init(uint16_t msec)
 {
@@ -343,7 +343,7 @@ static inline void timer_start(void)
 	// IntervalTimer is capable of longer intervals, but
 	// LPTMR can overflow.  Limiting to 1 ms allows counting
 	// up to 65.535 MHz... LPTMR on Teensy 3.1 can do 65 MHz!
-	itimer.begin(timer_callback, 1000000);
+	itimer.begin(timer_interrupt, 1000);
 }
 
 static inline void timer_shutdown(void)
