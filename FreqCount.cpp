@@ -135,6 +135,11 @@ uint32_t FreqCountClass::read(void)
   return count_output;
 }
 
+void FreqCountClass::end(void)
+{
+	timer_shutdown();
+}
+
 #endif
 
 FreqCountClass FreqCount;

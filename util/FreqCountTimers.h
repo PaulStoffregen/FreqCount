@@ -380,6 +380,7 @@ static inline void timer_start(void)
 
 static inline void timer_shutdown(void)
 {
+	itimer.end();
 }
 
 
