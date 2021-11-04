@@ -364,6 +364,8 @@ volatile uint32_t count;
 static void timer_callback()
 {
   count = TMRx->CH[2].CNTR | TMRx->CH[3].HOLD << 16; // atomic
+  count_output = count - count_prev;
+  count_prev = count;
   count_ready = 1;
 }
 
