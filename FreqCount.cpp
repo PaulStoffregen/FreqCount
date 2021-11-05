@@ -127,8 +127,6 @@ uint8_t FreqCountClass::available(void)
 uint32_t FreqCountClass::read(void)
 {
   count_ready = 0;
-  count = 0;
-  
   return count_output;
 }
 
