@@ -126,13 +126,13 @@ uint8_t FreqCountClass::available(void)
 
 uint32_t FreqCountClass::read(void)
 {
-    count_output = count - count_prev;
-    count_prev = count;
-    //Serial.println(count - count_prev);
-    count_prev = count;
-    count_ready = 0;
-  
+  count_ready = 0;
   return count_output;
+}
+
+void FreqCountClass::end(void)
+{
+	timer_shutdown();
 }
 
 #endif
