@@ -372,6 +372,7 @@ static void timer_callback()
 static inline uint16_t timer_init(uint32_t usec)
 {
 	itimer.begin(timer_callback, usec);  //timer correction
+	count_prev = 0;
 	return usec;
 }
 
