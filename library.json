@@ -1,18 +1,16 @@
 {
-"name": "FreqCount",
-"frameworks": "Arduino",
-"keywords": "Frequency",
-"description": "Measure Frequency by cycle counting",
-"url": "http://www.pjrc.com/teensy/td_libs_FreqCount.html",
-"downloadUrl": "http://www.pjrc.com/teensy/arduino_libraries/FreqCount.zip",
-"authors":
-{
-        "name": "Paul Stoffregen",
-        "maintainer": true
-},
-"repository":
-{
-    "type": "git",
-    "url": "https://github.com/PaulStoffregen/FreqCount"
-}
+  "name": "FreqCount",
+  "version": "1.3"
+  "frameworks": "arduino",
+  "keywords": "frequency, signal",
+  "description": "Measure Frequency by cycle counting",
+  "homepage": "http://www.pjrc.com/teensy/td_libs_FreqCount.html",
+  "authors": {
+    "name": "Paul Stoffregen",
+    "maintainer": true
+  },
+  "repository":{
+    "type":"git",
+    "url":"https://github.com/PaulStoffregen/FreqCount"
+  }
 }
