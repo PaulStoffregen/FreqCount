@@ -71,6 +71,10 @@ static volatile uint32_t usec;
   #define COUNTER_USE_TIMER1    // T1 is pin 5
   #define TIMER_USE_TIMER2
 
+#elif defined(__AVR_ATmega328PB__)
+  #define COUNTER_USE_TIMER1    // T1 is pin 5
+  #define TIMER_USE_TIMER2
+
 #else
   #error "Unknown chip, please edit me with timer+counter definitions"
 
